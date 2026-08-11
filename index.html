@@ -44,16 +44,152 @@
     background-position: 35% center;
     background-repeat: no-repeat;
   }
-  /* small audio-only music player (video track hidden, custom controls) */
-  .player{
+
+  /* dock holds the queue panel + seek bar + player pill together, bottom-centered */
+  .player-dock{
     position: absolute;
     left: 50%;
     bottom: clamp(20px, 5vh, 44px);
     transform: translateX(-50%);
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
-    padding: 8px 18px 8px 8px;
+    gap: 8px;
+    width: min(480px, 86vw);
+  }
+
+  /* seek bar row */
+  .seek-wrap{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 16px;
+    background: rgba(24, 7, 5, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  }
+  .seek-wrap .time{
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    color: var(--cream);
+    opacity: 0.75;
+    flex: 0 0 auto;
+    min-width: 32px;
+    text-align: center;
+  }
+  .seek-bar{
+    flex: 1 1 auto;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(238,221,192,0.25);
+    outline: none;
+    cursor: pointer;
+  }
+  .seek-bar::-webkit-slider-runnable-track{
+    height: 4px;
+    border-radius: 2px;
+    background: transparent;
+  }
+  .seek-bar::-webkit-slider-thumb{
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--cream);
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(0,0,0,0.4);
+  }
+  .seek-bar::-moz-range-track{
+    height: 4px;
+    border-radius: 2px;
+    background: transparent;
+  }
+  .seek-bar::-moz-range-thumb{
+    width: 12px;
+    height: 12px;
+    border: none;
+    border-radius: 50%;
+    background: var(--cream);
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(0,0,0,0.4);
+  }
+
+  /* "up next" queue dropdown */
+  .queue-panel{
+    width: 100%;
+    background: rgba(24, 7, 5, 0.78);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 12px 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .queue-panel[hidden]{ display: none; }
+  .queue-title{
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cream);
+    opacity: 0.6;
+    margin: 0 0 8px 4px;
+  }
+  .queue-list{
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .queue-list li{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--cream);
+    font-size: 12px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .queue-list li:hover{ background: rgba(238,221,192,0.1); }
+  .queue-list li .qnum{
+    opacity: 0.5;
+    font-size: 10px;
+    min-width: 14px;
+    flex: 0 0 auto;
+  }
+  .queue-list li .qtitle{
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .queue-list .qempty{
+    opacity: 0.5;
+    font-size: 11px;
+    padding: 6px 8px;
+    cursor: default;
+  }
+  .queue-list .qempty:hover{ background: transparent; }
+
+  /* small audio-only music player (video track hidden, custom controls) */
+  .player{
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px 8px 8px;
     background: rgba(24, 7, 5, 0.55);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
@@ -99,13 +235,14 @@
   .nav-btn:hover{ opacity: 1; }
   .nav-btn:active{ transform: scale(0.9); }
   .nav-btn svg{ width: 14px; height: 14px; }
+  .nav-btn.is-open{ opacity: 1; color: var(--cream); }
   .player-label{
     display: flex;
     flex-direction: column;
     line-height: 1.25;
     color: var(--cream);
     white-space: nowrap;
-    max-width: 34vw;
+    max-width: 28vw;
     overflow: hidden;
   }
   .player-label .title{
@@ -160,9 +297,11 @@
     pointer-events: none;
   }
   @media (max-width: 480px){
-    .player{ padding: 7px 14px 7px 7px; gap: 8px; }
+    .player{ padding: 7px 12px 7px 7px; gap: 7px; }
     .play-btn{ width: 36px; height: 36px; }
     .nav-btn{ width: 24px; height: 24px; }
+    .seek-wrap{ padding: 6px 12px; }
+    .player-label{ max-width: 24vw; }
   }
   /* top-center clock, 12-hour format */
   .top-center-clock{
@@ -275,35 +414,65 @@
   <div class="top-left-widget" id="topLeftWidget">
     <div class="live"><span class="dot"></span><span id="topListenerCount">-- people on 9XM</span></div>
   </div>
-  <div class="player" id="player">
-    <button class="nav-btn" id="prevBtn" aria-label="Previous track">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM9.5 12l8.5 6V6z"/></svg>
-    </button>
-    <button class="play-btn" id="playBtn" aria-label="Play 9XM Wali Subah radio">
-      <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-      <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
-    </button>
-    <button class="nav-btn" id="nextBtn" aria-label="Next track">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg>
-    </button>
-    <div class="player-label">
-      <span class="title" id="titleText">9XM Wali Subah</span>
-      <span class="status" id="statusText">Tap to play</span>
-      <span class="listeners" id="listenerCount"></span>
+
+  <div class="player-dock" id="playerDock">
+    <div class="queue-panel" id="queuePanel" hidden>
+      <div class="queue-title">Up next</div>
+      <ul class="queue-list" id="queueList"></ul>
     </div>
-    <div class="eq" aria-hidden="true"><i></i><i></i><i></i></div>
+
+    <div class="seek-wrap" id="seekWrap">
+      <span class="time" id="curTime">0:00</span>
+      <input type="range" class="seek-bar" id="seekBar" min="0" max="1000" value="0" step="1" aria-label="Seek">
+      <span class="time" id="durTime">0:00</span>
+    </div>
+
+    <div class="player" id="player">
+      <button class="nav-btn" id="prevBtn" aria-label="Previous track">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM9.5 12l8.5 6V6z"/></svg>
+      </button>
+      <button class="play-btn" id="playBtn" aria-label="Play 9XM Wali Subah radio">
+        <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg class="icon-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <button class="nav-btn" id="nextBtn" aria-label="Next track">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg>
+      </button>
+      <button class="nav-btn" id="queueBtn" aria-label="Show up next" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h15v2H4V6zm0 5h9v2H4v-2zm0 5h15v2H4v-2z"/></svg>
+      </button>
+      <div class="player-label">
+        <span class="title" id="titleText">9XM Wali Subah</span>
+        <span class="status" id="statusText">Tap to play</span>
+        <span class="listeners" id="listenerCount"></span>
+      </div>
+      <div class="eq" aria-hidden="true"><i></i><i></i><i></i></div>
+    </div>
   </div>
+
   <div id="yt-player"></div>
 </div>
 <script>
   var PLAYLIST_ID = 'PLOSIsERzJzxTDf20Gz-O9rj41SUXEg1pq';
   var ytPlayer, ready = false, playing = false, pendingClick = false, hasUnlocked = false;
   var playerEl = document.getElementById('player');
+  var playerDock = document.getElementById('playerDock');
   var playBtn = document.getElementById('playBtn');
   var prevBtn = document.getElementById('prevBtn');
   var nextBtn = document.getElementById('nextBtn');
+  var queueBtn = document.getElementById('queueBtn');
+  var queuePanel = document.getElementById('queuePanel');
+  var queueList = document.getElementById('queueList');
   var statusText = document.getElementById('statusText');
   var titleText = document.getElementById('titleText');
+
+  var seekBar = document.getElementById('seekBar');
+  var curTimeEl = document.getElementById('curTime');
+  var durTimeEl = document.getElementById('durTime');
+  var SEEK_RESOLUTION = 1000;
+  var isScrubbing = false;
+  var queueOpen = false;
+
   function setStatus(text){ statusText.textContent = text; }
   function setPlayingState(state){
     playing = state;
@@ -329,6 +498,138 @@
     } catch(e){}
     setPlayingState(true);
   }
+
+  function formatTime(sec){
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    var m = Math.floor(sec / 60);
+    var s = Math.floor(sec % 60);
+    return m + ':' + (s < 10 ? '0' + s : s);
+  }
+
+  function paintSeek(pct){
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    seekBar.style.background = 'linear-gradient(to right, #eeddc0 0%, #eeddc0 ' + pct + '%, rgba(238,221,192,0.25) ' + pct + '%, rgba(238,221,192,0.25) 100%)';
+  }
+
+  function pollProgress(){
+    if (!ready || isScrubbing || !ytPlayer) return;
+    try{
+      var dur = ytPlayer.getDuration();
+      var cur = ytPlayer.getCurrentTime();
+      if (dur > 0){
+        var pct = (cur / dur) * 100;
+        seekBar.value = Math.round((cur / dur) * SEEK_RESOLUTION);
+        paintSeek(pct);
+        curTimeEl.textContent = formatTime(cur);
+        durTimeEl.textContent = formatTime(dur);
+      }
+    } catch(e){}
+  }
+
+  seekBar.addEventListener('input', function(){
+    isScrubbing = true;
+    var pct = (seekBar.value / SEEK_RESOLUTION) * 100;
+    paintSeek(pct);
+    try{
+      if (ready && ytPlayer){
+        var dur = ytPlayer.getDuration();
+        if (dur > 0){ curTimeEl.textContent = formatTime((seekBar.value / SEEK_RESOLUTION) * dur); }
+      }
+    } catch(e){}
+  });
+
+  function commitSeek(){
+    if (ready && ytPlayer){
+      try{
+        var dur = ytPlayer.getDuration();
+        if (dur > 0){
+          var target = (seekBar.value / SEEK_RESOLUTION) * dur;
+          ytPlayer.seekTo(target, true);
+        }
+      } catch(e){}
+    }
+    isScrubbing = false;
+  }
+  seekBar.addEventListener('change', commitSeek);
+  seekBar.addEventListener('mouseup', commitSeek);
+  seekBar.addEventListener('touchend', commitSeek);
+
+  // -- "up next" queue --------------------------------------------------
+  function fetchTitle(videoId, el){
+    fetch('https://www.youtube.com/oembed?url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + videoId) + '&format=json')
+      .then(function(res){ if (!res.ok) throw new Error('oembed failed'); return res.json(); })
+      .then(function(data){ if (data && data.title) el.textContent = data.title; })
+      .catch(function(){ /* leave the "Track N" fallback already in place */ });
+  }
+
+  function closeQueue(){
+    queueOpen = false;
+    queuePanel.hidden = true;
+    queueBtn.classList.remove('is-open');
+    queueBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  function buildQueue(){
+    try{
+      var ids = ytPlayer.getPlaylist();
+      var idx = ytPlayer.getPlaylistIndex();
+      if (!ids || !ids.length || idx < 0){
+        queueList.innerHTML = '<li class="qempty">Queue not available yet.</li>';
+        return;
+      }
+      var upcoming = [];
+      for (var i = 1; i <= 5 && i < ids.length; i++){
+        upcoming.push({ videoId: ids[(idx + i) % ids.length], targetIndex: (idx + i) % ids.length });
+      }
+      if (!upcoming.length){
+        queueList.innerHTML = '<li class="qempty">No more tracks queued.</li>';
+        return;
+      }
+      queueList.innerHTML = '';
+      upcoming.forEach(function(item, i){
+        var li = document.createElement('li');
+        var num = document.createElement('span');
+        num.className = 'qnum';
+        num.textContent = (i + 1);
+        var titleSpan = document.createElement('span');
+        titleSpan.className = 'qtitle';
+        titleSpan.textContent = 'Track ' + (i + 1);
+        li.appendChild(num);
+        li.appendChild(titleSpan);
+        li.addEventListener('click', function(){
+          if (!hasUnlocked) unlockAudio();
+          ytPlayer.playVideoAt(item.targetIndex);
+          ytPlayer.playVideo();
+          closeQueue();
+        });
+        queueList.appendChild(li);
+        fetchTitle(item.videoId, titleSpan);
+      });
+    } catch(e){
+      console.error('[9XM] queue build failed', e);
+      queueList.innerHTML = '<li class="qempty">Queue not available yet.</li>';
+    }
+  }
+
+  queueBtn.addEventListener('click', function(){
+    if (!ready) return;
+    if (queueOpen){
+      closeQueue();
+    } else {
+      queueOpen = true;
+      queuePanel.hidden = false;
+      queueBtn.classList.add('is-open');
+      queueBtn.setAttribute('aria-expanded', 'true');
+      buildQueue();
+    }
+  });
+
+  document.addEventListener('click', function(e){
+    if (!queueOpen) return;
+    if (!playerDock.contains(e.target)) closeQueue();
+  });
+
   console.log('[9XM] page loaded, requesting YouTube iframe API script...');
   var tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
@@ -357,9 +658,23 @@
         onReady: function(){
           console.log('[9XM] player onReady fired. ready = true.');
           ready = true;
+          try{
+            ytPlayer.mute();
+            // shuffle mode -- so next/previous (and auto-advance) pick a random
+            // track instead of walking the playlist in order
+            ytPlayer.setShuffle(true);
+            var ids = ytPlayer.getPlaylist();
+            if (ids && ids.length){
+              // jump straight to a random track instead of always starting at #1
+              var randomIndex = Math.floor(Math.random() * ids.length);
+              console.log('[9XM] shuffling in -- starting at random track', randomIndex, 'of', ids.length);
+              ytPlayer.playVideoAt(randomIndex);
+            } else {
+              ytPlayer.playVideo();
+            }
+          } catch(e){}
           // start the stream muted right away -- muted autoplay is allowed on every
           // mobile browser, so the track is already rolling by the time someone taps play
-          try{ ytPlayer.mute(); ytPlayer.playVideo(); } catch(e){}
           if (pendingClick){ pendingClick = false; console.log('[9XM] a tap was waiting -- unlocking audio now.'); unlockAudio(); }
         },
         onStateChange: function(e){
@@ -371,6 +686,7 @@
           }
           if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.BUFFERING || e.data === 5){
             updateSongTitle();
+            if (queueOpen) buildQueue();
           }
         },
         onError: function(e){
@@ -402,6 +718,7 @@
     ytPlayer.nextVideo();
     ytPlayer.playVideo();
   });
+
   (function(){
     var clockEl = document.getElementById('liveClock');
     function pad(n){ return n < 10 ? '0' + n : n; }
@@ -458,6 +775,8 @@
 
     document.body.appendChild(banner);
   })();
+
+  setInterval(pollProgress, 500);
 </script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
