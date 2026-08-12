@@ -437,6 +437,148 @@
     .contact-tag{ bottom: 10px; right: 10px; padding: 7px 9px; }
     .contact-tag a{ font-size: 9px; }
   }
+  /* live chat -- toggle button + slide-up drawer, bottom-left corner */
+  .chat-toggle-btn{
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    z-index: 6;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: rgba(24, 7, 5, 0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.35);
+  }
+  .chat-toggle-btn svg{ width: 20px; height: 20px; }
+  .chat-panel{
+    position: absolute;
+    left: 14px;
+    bottom: 70px;
+    z-index: 6;
+    width: min(300px, 88vw);
+    max-height: min(420px, 58vh);
+    display: flex;
+    flex-direction: column;
+    background: rgba(24, 7, 5, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 10px 31px rgba(0,0,0,0.4);
+    overflow: hidden;
+  }
+  .chat-panel[hidden]{ display: none; }
+  .chat-header{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    color: var(--cream);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    flex: 0 0 auto;
+  }
+  .chat-close-btn{
+    background: none;
+    border: none;
+    color: var(--cream);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.7;
+    padding: 0 2px;
+  }
+  .chat-close-btn:hover{ opacity: 1; }
+  .chat-messages{
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 120px;
+  }
+  .chat-msg{
+    font-size: 12.5px;
+    color: var(--cream);
+    line-height: 1.35;
+    word-break: break-word;
+  }
+  .chat-msg .chat-name{
+    font-weight: 600;
+    opacity: 0.95;
+    margin-right: 5px;
+    color: #ff8b7a;
+  }
+  .chat-empty{
+    opacity: 0.5;
+    font-size: 12px;
+    text-align: center;
+    margin-top: 20px;
+    color: var(--cream);
+  }
+  .chat-input-area{
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    border-top: 1px solid var(--line);
+  }
+  .chat-name-input{
+    width: 100%;
+    background: rgba(238,221,192,0.08);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 12px;
+    color: var(--cream);
+    font-size: 11px;
+    outline: none;
+    font-family: inherit;
+  }
+  .chat-input-line2{
+    display: flex;
+    gap: 6px;
+  }
+  .chat-text-input{
+    flex: 1 1 auto;
+    min-width: 0;
+    background: rgba(238,221,192,0.08);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 8px 12px;
+    color: var(--cream);
+    font-size: 12px;
+    outline: none;
+    font-family: inherit;
+  }
+  .chat-name-input::placeholder, .chat-text-input::placeholder{ color: rgba(238,221,192,0.5); }
+  .chat-send-btn{
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 999px;
+    background: var(--cream);
+    color: var(--black);
+    padding: 8px 15px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  @media (max-width: 480px){
+    .chat-toggle-btn{ bottom: 10px; left: 10px; width: 40px; height: 40px; }
+    .chat-panel{ left: 10px; bottom: 64px; width: min(280px, 90vw); max-height: 50vh; }
+  }
 </style>
 </head>
 <body>
@@ -454,6 +596,23 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
       <span>myringole@gmail.com</span>
     </a>
+  </div>
+  <button class="chat-toggle-btn" id="chatToggleBtn" aria-label="Open live chat" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+  </button>
+  <div class="chat-panel" id="chatPanel" hidden>
+    <div class="chat-header">
+      <span>Live Chat</span>
+      <button class="chat-close-btn" id="chatCloseBtn" aria-label="Close chat">&times;</button>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-area" id="chatInputArea">
+      <input type="text" id="chatNameInput" class="chat-name-input" placeholder="Your name" maxlength="20">
+      <div class="chat-input-line2">
+        <input type="text" id="chatTextInput" class="chat-text-input" placeholder="Say something..." maxlength="200">
+        <button type="button" id="chatSendBtn" class="chat-send-btn">Send</button>
+      </div>
+    </div>
   </div>
   <div class="player-dock" id="playerDock">
     <div class="queue-panel" id="queuePanel" hidden>
@@ -791,13 +950,86 @@
     banner.appendChild(closeBtn);
     document.body.appendChild(banner);
   })();
+  // -- live chat (like a YouTube live stream chat) -----------------------
+  (function(){
+    var chatToggleBtn = document.getElementById('chatToggleBtn');
+    var chatPanel = document.getElementById('chatPanel');
+    var chatCloseBtn = document.getElementById('chatCloseBtn');
+    var chatMessagesEl = document.getElementById('chatMessages');
+    var chatNameInput = document.getElementById('chatNameInput');
+    var chatTextInput = document.getElementById('chatTextInput');
+    var chatSendBtn = document.getElementById('chatSendBtn');
+    var CHAT_NAME_KEY = '9xm_chat_name';
+    var MIN_SEND_GAP_MS = 2500; // basic spam guard -- one message every 2.5s
+    var lastSendAt = 0;
+
+    try{
+      var savedName = localStorage.getItem(CHAT_NAME_KEY);
+      if (savedName) chatNameInput.value = savedName;
+    } catch(e){}
+
+    function openChat(){
+      chatPanel.hidden = false;
+      chatToggleBtn.setAttribute('aria-expanded', 'true');
+      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+    }
+    function closeChat(){
+      chatPanel.hidden = true;
+      chatToggleBtn.setAttribute('aria-expanded', 'false');
+    }
+    chatToggleBtn.addEventListener('click', function(){
+      if (chatPanel.hidden) openChat(); else closeChat();
+    });
+    chatCloseBtn.addEventListener('click', closeChat);
+
+    function sendChatMessage(){
+      var name = (chatNameInput.value || '').trim().slice(0, 20) || 'Anonymous';
+      var text = (chatTextInput.value || '').trim().slice(0, 200);
+      if (!text) return;
+      var now = Date.now();
+      if (now - lastSendAt < MIN_SEND_GAP_MS){ return; }
+      lastSendAt = now;
+      try{ localStorage.setItem(CHAT_NAME_KEY, name); } catch(e){}
+      chatTextInput.value = '';
+      window.dispatchEvent(new CustomEvent('9xm-chat-send', { detail: { name: name, text: text } }));
+    }
+    chatSendBtn.addEventListener('click', sendChatMessage);
+    chatTextInput.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ e.preventDefault(); sendChatMessage(); }
+    });
+
+    // called from the Firebase module script below whenever a chat message
+    // (new or already-existing) comes in through the real-time listener
+    window.renderChatMessage = function(name, text){
+      var wasNearBottom = (chatMessagesEl.scrollTop + chatMessagesEl.clientHeight) >= (chatMessagesEl.scrollHeight - 30);
+      var emptyEl = chatMessagesEl.querySelector('.chat-empty');
+      if (emptyEl) emptyEl.remove();
+      var line = document.createElement('div');
+      line.className = 'chat-msg';
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'chat-name';
+      nameSpan.textContent = name + ':';
+      var textSpan = document.createElement('span');
+      textSpan.textContent = text;
+      line.appendChild(nameSpan);
+      line.appendChild(textSpan);
+      chatMessagesEl.appendChild(line);
+      // keep the DOM from growing forever on a long-running tab
+      while (chatMessagesEl.children.length > 150){ chatMessagesEl.removeChild(chatMessagesEl.firstChild); }
+      if (wasNearBottom) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+    };
+    if (!chatMessagesEl.children.length){
+      chatMessagesEl.innerHTML = '<div class="chat-empty">No messages yet. Say hi!</div>';
+    }
+  })();
   setInterval(pollProgress, 500);
 </script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
   import {
     getFirestore, doc, setDoc, deleteDoc, serverTimestamp,
-    collection, query, where, getDocs, Timestamp
+    collection, query, where, getDocs, Timestamp,
+    addDoc, orderBy, limit, onSnapshot
   } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
   var firebaseConfig = {
     apiKey: "AIzaSyBscSBX8D07YtoLW_rG1I6WcXqqyihfYwI",
@@ -851,6 +1083,33 @@
   // the next regular heartbeat tick
   document.addEventListener('visibilitychange', function(){
     if (document.visibilityState === 'visible') heartbeat();
+  });
+
+  // -- live chat: real-time listen + send --------------------------------
+  var chatCollectionRef = collection(db, 'chat_messages');
+  var chatQuery = query(chatCollectionRef, orderBy('createdAt', 'desc'), limit(50));
+  var chatSeenIds = {};
+  onSnapshot(chatQuery, function(snap){
+    // Firestore gives newest-first (for the limit(50) to work) -- flip it
+    // back to oldest-first so messages render top-to-bottom like a chat.
+    var docsOldestFirst = snap.docs.slice().reverse();
+    docsOldestFirst.forEach(function(d){
+      if (chatSeenIds[d.id]) return;
+      chatSeenIds[d.id] = true;
+      var data = d.data();
+      if (window.renderChatMessage){
+        window.renderChatMessage(data.name || 'Anonymous', data.text || '');
+      }
+    });
+  }, function(e){ console.error('[9XM chat] listen failed', e); });
+
+  window.addEventListener('9xm-chat-send', function(e){
+    var detail = e.detail || {};
+    var name = (detail.name || 'Anonymous').toString().slice(0, 20);
+    var text = (detail.text || '').toString().slice(0, 200);
+    if (!text) return;
+    addDoc(chatCollectionRef, { name: name, text: text, createdAt: serverTimestamp() })
+      .catch(function(err){ console.error('[9XM chat] send failed', err); });
   });
 </script>
 </body>
