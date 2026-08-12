@@ -788,9 +788,30 @@
   // just paste another ID into this array.
   var PLAYLIST_IDS = [
     'PLOSIsERzJzxTDf20Gz-O9rj41SUXEg1pq',
-    'PL3HNZiADew9640W9Ut4qHTuAvm47dSMI3'
+    'PL3HNZiADew9640W9Ut4qHTuAvm47dSMI3',
+    'PL5Kx70UwnCyRH7kqStyvHUdIWbcWuI9Mk'
   ];
-  var PLAYLIST_ID = PLAYLIST_IDS[Math.floor(Math.random() * PLAYLIST_IDS.length)];
+  // for testing: open the page with ?pl=2 (1-indexed, matches the list
+  // above) to force that exact playlist to load instead of a random one --
+  // handy for checking "does playlist #2 actually play?" without relying
+  // on the 50/50 random pick landing on it.
+  var forcedPlaylistIndex = null;
+  try{
+    var urlParams = new URLSearchParams(window.location.search);
+    var plParam = urlParams.get('pl');
+    if (plParam !== null){
+      var forcedNum = parseInt(plParam, 10);
+      if (!isNaN(forcedNum) && forcedNum >= 1 && forcedNum <= PLAYLIST_IDS.length){
+        forcedPlaylistIndex = forcedNum - 1;
+      }
+    }
+  } catch(e){}
+  var PLAYLIST_ID = (forcedPlaylistIndex !== null)
+    ? PLAYLIST_IDS[forcedPlaylistIndex]
+    : PLAYLIST_IDS[Math.floor(Math.random() * PLAYLIST_IDS.length)];
+  if (forcedPlaylistIndex !== null){
+    console.log('[9XM] ?pl= override active -- forcing playlist', forcedPlaylistIndex + 1, 'of', PLAYLIST_IDS.length);
+  }
   var ytPlayer, ready = false, playing = false, pendingClick = false, hasUnlocked = false;
   var playerEl = document.getElementById('player');
   var playerDock = document.getElementById('playerDock');
