@@ -521,6 +521,16 @@
     margin-right: 5px;
     color: #ff8b7a;
   }
+  .chat-msg-song{
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    opacity: 0.55;
+    margin-top: 2px;
+    margin-left: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .chat-empty{
     opacity: 0.5;
     font-size: 12px;
@@ -991,7 +1001,15 @@
       lastSendAt = now;
       try{ localStorage.setItem(CHAT_NAME_KEY, name); } catch(e){}
       chatTextInput.value = '';
-      window.dispatchEvent(new CustomEvent('9xm-chat-send', { detail: { name: name, text: text } }));
+      // tag the message with whatever song is showing in the player right
+      // now, but only once something has actually started playing --
+      // otherwise it's just the placeholder "9XM Wali Subah" text
+      var song = '';
+      try{
+        var currentTitle = (titleText.textContent || '').trim();
+        if (currentTitle && currentTitle !== '9XM Wali Subah') song = currentTitle.slice(0, 120);
+      } catch(e){}
+      window.dispatchEvent(new CustomEvent('9xm-chat-send', { detail: { name: name, text: text, song: song } }));
     }
     chatSendBtn.addEventListener('click', sendChatMessage);
     chatTextInput.addEventListener('keydown', function(e){
@@ -1000,7 +1018,7 @@
 
     // called from the Firebase module script below whenever a chat message
     // (new or already-existing) comes in through the real-time listener
-    window.renderChatMessage = function(name, text){
+    window.renderChatMessage = function(name, text, song){
       var wasNearBottom = (chatMessagesEl.scrollTop + chatMessagesEl.clientHeight) >= (chatMessagesEl.scrollHeight - 30);
       var emptyEl = chatMessagesEl.querySelector('.chat-empty');
       if (emptyEl) emptyEl.remove();
@@ -1013,6 +1031,12 @@
       textSpan.textContent = text;
       line.appendChild(nameSpan);
       line.appendChild(textSpan);
+      if (song){
+        var songLine = document.createElement('div');
+        songLine.className = 'chat-msg-song';
+        songLine.textContent = '🎵 listening to ' + song;
+        line.appendChild(songLine);
+      }
       chatMessagesEl.appendChild(line);
       // keep the DOM from growing forever on a long-running tab
       while (chatMessagesEl.children.length > 150){ chatMessagesEl.removeChild(chatMessagesEl.firstChild); }
@@ -1098,7 +1122,7 @@
       chatSeenIds[d.id] = true;
       var data = d.data();
       if (window.renderChatMessage){
-        window.renderChatMessage(data.name || 'Anonymous', data.text || '');
+        window.renderChatMessage(data.name || 'Anonymous', data.text || '', data.song || '');
       }
     });
   }, function(e){ console.error('[9XM chat] listen failed', e); });
@@ -1107,8 +1131,9 @@
     var detail = e.detail || {};
     var name = (detail.name || 'Anonymous').toString().slice(0, 20);
     var text = (detail.text || '').toString().slice(0, 200);
+    var song = (detail.song || '').toString().slice(0, 120);
     if (!text) return;
-    addDoc(chatCollectionRef, { name: name, text: text, createdAt: serverTimestamp() })
+    addDoc(chatCollectionRef, { name: name, text: text, song: song, createdAt: serverTimestamp() })
       .catch(function(err){ console.error('[9XM chat] send failed', err); });
   });
 </script>
