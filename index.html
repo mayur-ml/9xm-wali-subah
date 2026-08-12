@@ -38,30 +38,16 @@
     height: 100vh;
     height: 100dvh;
     background-color: #4a0705;
-    overflow: hidden;
-  }
-  /* two stacked background layers so switching images can be a real
-     crossfade (fade the new one in while fading the old one out) instead
-     of an instant, jarring swap. only one carries opacity:1 at a time --
-     see .is-visible and the pickRandomBackground() JS below. */
-  .hero-bg{
-    position: absolute;
-    inset: 0;
     background-size: cover;
     background-position: 35% center;
     background-repeat: no-repeat;
-    opacity: 0;
-    transition: opacity 0.9s ease;
-    z-index: 0;
   }
-  .hero-bg.is-visible{ opacity: 1; }
   /* dock holds the queue panel + seek bar + player pill together, bottom-centered */
   .player-dock{
     position: absolute;
     left: 50%;
     bottom: calc(clamp(21px, 5vh, 46px) + env(safe-area-inset-bottom, 0px));
     transform: translateX(-50%);
-    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -723,8 +709,6 @@
 </head>
 <body>
 <div class="hero">
-  <div class="hero-bg" id="heroBgA"></div>
-  <div class="hero-bg" id="heroBgB"></div>
   <div class="top-center-clock" id="liveClock">--:-- --</div>
   <div class="top-left-stack" id="topLeftStack">
     <div class="top-left-widget" id="topLeftWidget">
@@ -823,47 +807,21 @@
   // natural auto-advance -- all of those funnel through onStateChange below).
   // add more filenames to this array as more images get added to the folder.
   var BACKGROUND_IMAGES = [
-    '9xm_back/image1.png',
     '9xm_back/image2.png',
-    '9xm_back/image3.png',
-    '9xm_back/image4.png',
-    '9xm_back/image5.png',
-    '9xm_back/image6.png',
-    '9xm_back/image7.png'
+    '9xm_back/image3.png'
   ];
-  // two stacked layers (see the .hero-bg CSS) so a track change can
-  // crossfade into the new image instead of snapping to it instantly.
-  var heroBgLayers = [document.getElementById('heroBgA'), document.getElementById('heroBgB')];
-  var activeBgLayerIndex = 0;
+  var heroEl = document.querySelector('.hero');
   var lastBgIndex = -1;
   var currentBgVideoId = null;
   function pickRandomBackground(){
-    if (!BACKGROUND_IMAGES.length || !heroBgLayers[0] || !heroBgLayers[1]) return;
+    if (!BACKGROUND_IMAGES.length || !heroEl) return;
     var idx = 0;
     if (BACKGROUND_IMAGES.length > 1){
       // avoid picking the same image twice in a row
       do { idx = Math.floor(Math.random() * BACKGROUND_IMAGES.length); } while (idx === lastBgIndex);
     }
     lastBgIndex = idx;
-    var url = BACKGROUND_IMAGES[idx];
-    var nextLayerIndex = activeBgLayerIndex === 0 ? 1 : 0;
-    var nextLayer = heroBgLayers[nextLayerIndex];
-    var currentLayer = heroBgLayers[activeBgLayerIndex];
-    // preload the image before starting the crossfade -- otherwise, on a
-    // slow connection, the fade-in would start against a still-blank layer
-    // and the image would just pop in abruptly after the fade already
-    // finished, which defeats the point of a smooth transition
-    var preloader = new Image();
-    preloader.onload = function(){
-      nextLayer.style.backgroundImage = "url('" + url + "')";
-      nextLayer.classList.add('is-visible');
-      currentLayer.classList.remove('is-visible');
-      activeBgLayerIndex = nextLayerIndex;
-    };
-    preloader.onerror = function(){
-      console.error('[9XM] background image failed to load:', url);
-    };
-    preloader.src = url;
+    heroEl.style.backgroundImage = "url('" + BACKGROUND_IMAGES[idx] + "')";
   }
   pickRandomBackground();
   function setStatus(text){ statusText.textContent = text; }
