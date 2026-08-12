@@ -129,6 +129,8 @@
     box-shadow: 0 10px 31px rgba(0,0,0,0.35);
     max-height: 226px;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
   }
   .queue-panel[hidden]{ display: none; }
   .queue-title{
@@ -463,8 +465,8 @@
     left: 14px;
     bottom: 70px;
     z-index: 6;
-    width: min(300px, 88vw);
-    max-height: min(420px, 58vh);
+    width: min(400px, 92vw);
+    max-height: min(580px, 74vh);
     display: flex;
     flex-direction: column;
     background: rgba(24, 7, 5, 0.85);
@@ -507,7 +509,28 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    min-height: 120px;
+    min-height: 200px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+  /* transparent, theme-tinted scrollbars -- same treatment on the queue
+     panel so both scrollable widgets look consistent */
+  .chat-messages::-webkit-scrollbar,
+  .queue-panel::-webkit-scrollbar{
+    width: 6px;
+  }
+  .chat-messages::-webkit-scrollbar-track,
+  .queue-panel::-webkit-scrollbar-track{
+    background: transparent;
+  }
+  .chat-messages::-webkit-scrollbar-thumb,
+  .queue-panel::-webkit-scrollbar-thumb{
+    background: var(--line);
+    border-radius: 999px;
+  }
+  .chat-messages::-webkit-scrollbar-thumb:hover,
+  .queue-panel::-webkit-scrollbar-thumb:hover{
+    background: rgba(238,221,192,0.55);
   }
   .chat-msg{
     font-size: 12.5px;
@@ -587,7 +610,7 @@
   }
   @media (max-width: 480px){
     .chat-toggle-btn{ bottom: 10px; left: 10px; width: 40px; height: 40px; }
-    .chat-panel{ left: 10px; bottom: 64px; width: min(280px, 90vw); max-height: 50vh; }
+    .chat-panel{ left: 10px; bottom: 64px; width: min(340px, 94vw); max-height: 64vh; }
   }
 </style>
 </head>
