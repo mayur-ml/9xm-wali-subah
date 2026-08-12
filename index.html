@@ -782,7 +782,15 @@
   <div id="yt-player"></div>
 </div>
 <script>
-  var PLAYLIST_ID = 'PLOSIsERzJzxTDf20Gz-O9rj41SUXEg1pq';
+  // add as many playlist IDs here as you want -- each visitor's session
+  // picks one at random when the page loads, so traffic (and "today's
+  // pick") spreads across all of them over time. to add another playlist,
+  // just paste another ID into this array.
+  var PLAYLIST_IDS = [
+    'PLOSIsERzJzxTDf20Gz-O9rj41SUXEg1pq',
+    'PL3HNZiADew9640W9Ut4qHTuAvm47dSMI3'
+  ];
+  var PLAYLIST_ID = PLAYLIST_IDS[Math.floor(Math.random() * PLAYLIST_IDS.length)];
   var ytPlayer, ready = false, playing = false, pendingClick = false, hasUnlocked = false;
   var playerEl = document.getElementById('player');
   var playerDock = document.getElementById('playerDock');
@@ -1029,7 +1037,7 @@
     }
   }, 5000);
   window.onYouTubeIframeAPIReady = function(){
-    console.log('[9XM] YouTube iframe API loaded. Creating player with playlist', PLAYLIST_ID);
+    console.log('[9XM] YouTube iframe API loaded. Creating player with playlist', PLAYLIST_ID, '(', PLAYLIST_IDS.indexOf(PLAYLIST_ID) + 1, 'of', PLAYLIST_IDS.length, 'available)');
     ytPlayer = new YT.Player('yt-player', {
       height: '1',
       width: '1',
