@@ -37,7 +37,7 @@
     width: 100vw;
     height: 100vh;
     height: 100dvh;
-    background-image: url('back_image.png');
+    background-color: #4a0705;
     background-size: cover;
     background-position: 35% center;
     background-repeat: no-repeat;
@@ -800,6 +800,30 @@
   var SEEK_RESOLUTION = 1000;
   var isScrubbing = false;
   var queueOpen = false;
+  // -- rotating background images -----------------------------------------
+  // pulled from the 9xm_back folder in the repo. one is picked at random on
+  // page load, then swapped for a different random one every time the
+  // track actually changes (manual prev/next, daily pick, queue click, or
+  // natural auto-advance -- all of those funnel through onStateChange below).
+  // add more filenames to this array as more images get added to the folder.
+  var BACKGROUND_IMAGES = [
+    '9xm_back/image2.png',
+    '9xm_back/image3.png'
+  ];
+  var heroEl = document.querySelector('.hero');
+  var lastBgIndex = -1;
+  var currentBgVideoId = null;
+  function pickRandomBackground(){
+    if (!BACKGROUND_IMAGES.length || !heroEl) return;
+    var idx = 0;
+    if (BACKGROUND_IMAGES.length > 1){
+      // avoid picking the same image twice in a row
+      do { idx = Math.floor(Math.random() * BACKGROUND_IMAGES.length); } while (idx === lastBgIndex);
+    }
+    lastBgIndex = idx;
+    heroEl.style.backgroundImage = "url('" + BACKGROUND_IMAGES[idx] + "')";
+  }
+  pickRandomBackground();
   function setStatus(text){ statusText.textContent = text; }
   function setPlayingState(state){
     playing = state;
@@ -1078,6 +1102,17 @@
           if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.BUFFERING || e.data === 5){
             updateSongTitle();
             if (queueOpen) buildQueue();
+            // background image rotates whenever the actual track changes --
+            // this single hook catches manual prev/next, daily pick, queue
+            // clicks, and natural auto-advance, since they all end up here
+            try{
+              var vidData = ytPlayer.getVideoData();
+              var newVideoId = vidData && vidData.video_id;
+              if (newVideoId && newVideoId !== currentBgVideoId){
+                currentBgVideoId = newVideoId;
+                pickRandomBackground();
+              }
+            } catch(e2){}
           }
         },
         onError: function(e){
@@ -1172,12 +1207,10 @@
     var MIN_SEND_GAP_MS = 2500; // basic spam guard -- one message every 2.5s
     var lastSendAt = 0;
     var unreadCount = 0;
-
     try{
       var savedName = localStorage.getItem(CHAT_NAME_KEY);
       if (savedName) chatNameInput.value = savedName;
     } catch(e){}
-
     function updateChatBadge(){
       if (unreadCount > 0){
         chatBadge.hidden = false;
@@ -1186,7 +1219,6 @@
         chatBadge.hidden = true;
       }
     }
-
     function openChat(){
       chatPanel.hidden = false;
       chatToggleBtn.setAttribute('aria-expanded', 'true');
@@ -1202,7 +1234,6 @@
       if (chatPanel.hidden) openChat(); else closeChat();
     });
     chatCloseBtn.addEventListener('click', closeChat);
-
     function sendChatMessage(){
       var name = (chatNameInput.value || '').trim().slice(0, 20) || 'Anonymous';
       var text = (chatTextInput.value || '').trim().slice(0, 200);
@@ -1226,7 +1257,6 @@
     chatTextInput.addEventListener('keydown', function(e){
       if (e.key === 'Enter'){ e.preventDefault(); sendChatMessage(); }
     });
-
     // called from the Firebase module script below whenever a chat message
     // (new or already-existing) comes in through the real-time listener.
     // isNew is false for the initial history batch loaded on page open, and
@@ -1326,7 +1356,6 @@
   document.addEventListener('visibilitychange', function(){
     if (document.visibilityState === 'visible') heartbeat();
   });
-
   // -- live chat: real-time listen + send --------------------------------
   var chatCollectionRef = collection(db, 'chat_messages');
   var chatQuery = query(chatCollectionRef, orderBy('createdAt', 'desc'), limit(50));
@@ -1347,7 +1376,6 @@
     });
     chatIsFirstSnapshot = false;
   }, function(e){ console.error('[9XM chat] listen failed', e); });
-
   window.addEventListener('9xm-chat-send', function(e){
     var detail = e.detail || {};
     var name = (detail.name || 'Anonymous').toString().slice(0, 20);
