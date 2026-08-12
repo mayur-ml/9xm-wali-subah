@@ -782,7 +782,38 @@
   <div id="yt-player"></div>
 </div>
 <script>
-  var PLAYLIST_ID = 'PLOSIsERzJzxTDf20Gz-O9rj41SUXEg1pq';
+  // add as many playlist IDs here as you want -- on load, ALL of them get
+  // merged into one combined queue (so "All songs" in the queue panel and
+  // next/prev really do draw from every playlist, not just whichever one
+  // happened to load). to add another playlist, just paste another ID in.
+  var PLAYLIST_IDS = [
+    'PLOSIsERzJzxTDf20Gz-O9rj41SUXEg1pq',
+    'PL71gzSkiT0QkByFoGuRrMfeWQhywnyGDO',
+    'PL5Kx70UwnCyRH7kqStyvHUdIWbcWuI9Mk'
+  ];
+  // for testing only: open the page with ?pl=2 (1-indexed, matches the
+  // list above) to load JUST that one playlist by itself, skipping the
+  // merge entirely -- handy for checking "does playlist #2 actually play
+  // on its own?" (e.g. to rule out embedding-disabled videos in it)
+  // without the others mixed in to muddy the result.
+  var forcedPlaylistIndex = null;
+  try{
+    var urlParams = new URLSearchParams(window.location.search);
+    var plParam = urlParams.get('pl');
+    if (plParam !== null){
+      var forcedNum = parseInt(plParam, 10);
+      if (!isNaN(forcedNum) && forcedNum >= 1 && forcedNum <= PLAYLIST_IDS.length){
+        forcedPlaylistIndex = forcedNum - 1;
+      }
+    }
+  } catch(e){}
+  // this is just which playlist the player initially loads with -- when
+  // not overridden via ?pl=, onReady below immediately re-cues through
+  // every playlist and merges them, so this starting choice doesn't matter
+  var PLAYLIST_ID = (forcedPlaylistIndex !== null) ? PLAYLIST_IDS[forcedPlaylistIndex] : PLAYLIST_IDS[0];
+  if (forcedPlaylistIndex !== null){
+    console.log('[9XM] ?pl= override active -- loading ONLY playlist', forcedPlaylistIndex + 1, 'of', PLAYLIST_IDS.length, '(merge skipped)');
+  }
   var ytPlayer, ready = false, playing = false, pendingClick = false, hasUnlocked = false;
   var playerEl = document.getElementById('player');
   var playerDock = document.getElementById('playerDock');
@@ -929,6 +960,78 @@
     // the new pick on its own, without needing a page refresh
     setInterval(applyDailyPick, 5 * 60 * 1000);
   }
+  // -- merging multiple playlists into one combined queue -----------------
+  // the YouTube iframe player can only ever have ONE playlist "loaded" at
+  // a time -- there's no native way to hand it several playlist IDs and
+  // have it treat them as one. so instead we cue through each playlist in
+  // PLAYLIST_IDS one at a time (without playing it), read back its video
+  // IDs once it's actually loaded, then hand the player the full combined
+  // list as an explicit array. after that, next/prev/shuffle/"All songs"
+  // all treat it as one single big queue.
+  function startOnRandomTrack(ids){
+    if (ids && ids.length){
+      var randomIndex = Math.floor(Math.random() * ids.length);
+      console.log('[9XM] shuffling in -- starting at random track', randomIndex, 'of', ids.length);
+      ytPlayer.playVideoAt(randomIndex);
+    } else {
+      ytPlayer.playVideo();
+    }
+  }
+  function mergeAllPlaylists(callback){
+    var merged = [];
+    function collectNext(i){
+      if (i >= PLAYLIST_IDS.length){
+        // de-dupe while keeping first-seen order, in case the same song
+        // appears in more than one of your playlists
+        var seen = {};
+        var deduped = [];
+        merged.forEach(function(id){
+          if (!seen[id]){ seen[id] = true; deduped.push(id); }
+        });
+        callback(deduped);
+        return;
+      }
+      ytPlayer.cuePlaylist({ listType: 'playlist', list: PLAYLIST_IDS[i] });
+      var attempts = 0;
+      (function poll(){
+        attempts++;
+        var ids = ytPlayer.getPlaylist();
+        if (ids && ids.length){
+          console.log('[9XM] merge: playlist', i + 1, 'of', PLAYLIST_IDS.length, '--', ids.length, 'tracks');
+          merged = merged.concat(ids);
+          collectNext(i + 1);
+        } else if (attempts < 20){
+          setTimeout(poll, 300);
+        } else {
+          console.warn('[9XM] merge: playlist', PLAYLIST_IDS[i], 'never loaded (private, deleted, or blocked?) -- skipping it.');
+          collectNext(i + 1);
+        }
+      })();
+    }
+    collectNext(0);
+  }
+  function finalizeMergedQueue(mergedIds){
+    if (!mergedIds || !mergedIds.length){
+      console.error('[9XM] merge produced no tracks at all -- nothing to play.');
+      return;
+    }
+    ytPlayer.cuePlaylist({ playlist: mergedIds });
+    var attempts = 0;
+    (function poll(){
+      attempts++;
+      var check = ytPlayer.getPlaylist();
+      if (check && check.length){
+        ytPlayer.setShuffle(true);
+        setupDailyPick(mergedIds); // canonical (pre-shuffle) merged order -- same for every visitor
+        startOnRandomTrack(ytPlayer.getPlaylist());
+        console.log('[9XM] merged', PLAYLIST_IDS.length, 'playlists into', mergedIds.length, 'unique tracks.');
+      } else if (attempts < 20){
+        setTimeout(poll, 200);
+      } else {
+        console.error('[9XM] merged queue never became ready -- giving up.');
+      }
+    })();
+  }
   dailyPickWidget.addEventListener('click', function(){
     if (!ready || !dailyPickVideoId) return;
     if (!hasUnlocked){ unlockAudio(); }
@@ -1029,7 +1132,7 @@
     }
   }, 5000);
   window.onYouTubeIframeAPIReady = function(){
-    console.log('[9XM] YouTube iframe API loaded. Creating player with playlist', PLAYLIST_ID);
+    console.log('[9XM] YouTube iframe API loaded. Creating player with playlist', PLAYLIST_ID, '(', PLAYLIST_IDS.indexOf(PLAYLIST_ID) + 1, 'of', PLAYLIST_IDS.length, 'available)');
     ytPlayer = new YT.Player('yt-player', {
       height: '1',
       width: '1',
@@ -1044,28 +1147,21 @@
         onReady: function(){
           console.log('[9XM] player onReady fired. ready = true.');
           ready = true;
-          try{
-            ytPlayer.mute();
-            // grab the playlist's real order BEFORE turning shuffle on --
-            // this is the same order for every visitor, which is what makes
-            // "today's pick" land on the same song for everyone
-            var canonicalIds = ytPlayer.getPlaylist();
-            setupDailyPick(canonicalIds);
-            // shuffle mode -- so next/previous (and auto-advance) pick a random
-            // track instead of walking the playlist in order
-            ytPlayer.setShuffle(true);
-            var ids = ytPlayer.getPlaylist();
-            if (ids && ids.length){
-              // jump straight to a random track instead of always starting at #1
-              var randomIndex = Math.floor(Math.random() * ids.length);
-              console.log('[9XM] shuffling in -- starting at random track', randomIndex, 'of', ids.length);
-              ytPlayer.playVideoAt(randomIndex);
-            } else {
-              ytPlayer.playVideo();
-            }
-          } catch(e){}
           // start the stream muted right away -- muted autoplay is allowed on every
           // mobile browser, so the track is already rolling by the time someone taps play
+          try{
+            ytPlayer.mute();
+            if (forcedPlaylistIndex !== null){
+              // ?pl= override -- test this ONE playlist alone, merge skipped
+              var soloIds = ytPlayer.getPlaylist();
+              setupDailyPick(soloIds);
+              ytPlayer.setShuffle(true);
+              startOnRandomTrack(ytPlayer.getPlaylist());
+            } else {
+              // pull every playlist in PLAYLIST_IDS into one combined queue
+              mergeAllPlaylists(finalizeMergedQueue);
+            }
+          } catch(e){ console.error('[9XM] onReady error', e); }
           if (pendingClick){ pendingClick = false; console.log('[9XM] a tap was waiting -- unlocking audio now.'); unlockAudio(); }
         },
         onStateChange: function(e){
@@ -1172,12 +1268,10 @@
     var MIN_SEND_GAP_MS = 2500; // basic spam guard -- one message every 2.5s
     var lastSendAt = 0;
     var unreadCount = 0;
-
     try{
       var savedName = localStorage.getItem(CHAT_NAME_KEY);
       if (savedName) chatNameInput.value = savedName;
     } catch(e){}
-
     function updateChatBadge(){
       if (unreadCount > 0){
         chatBadge.hidden = false;
@@ -1186,7 +1280,6 @@
         chatBadge.hidden = true;
       }
     }
-
     function openChat(){
       chatPanel.hidden = false;
       chatToggleBtn.setAttribute('aria-expanded', 'true');
@@ -1202,7 +1295,6 @@
       if (chatPanel.hidden) openChat(); else closeChat();
     });
     chatCloseBtn.addEventListener('click', closeChat);
-
     function sendChatMessage(){
       var name = (chatNameInput.value || '').trim().slice(0, 20) || 'Anonymous';
       var text = (chatTextInput.value || '').trim().slice(0, 200);
@@ -1226,7 +1318,6 @@
     chatTextInput.addEventListener('keydown', function(e){
       if (e.key === 'Enter'){ e.preventDefault(); sendChatMessage(); }
     });
-
     // called from the Firebase module script below whenever a chat message
     // (new or already-existing) comes in through the real-time listener.
     // isNew is false for the initial history batch loaded on page open, and
@@ -1326,7 +1417,6 @@
   document.addEventListener('visibilitychange', function(){
     if (document.visibilityState === 'visible') heartbeat();
   });
-
   // -- live chat: real-time listen + send --------------------------------
   var chatCollectionRef = collection(db, 'chat_messages');
   var chatQuery = query(chatCollectionRef, orderBy('createdAt', 'desc'), limit(50));
@@ -1347,7 +1437,6 @@
     });
     chatIsFirstSnapshot = false;
   }, function(e){ console.error('[9XM chat] listen failed', e); });
-
   window.addEventListener('9xm-chat-send', function(e){
     var detail = e.detail || {};
     var name = (detail.name || 'Anonymous').toString().slice(0, 20);
