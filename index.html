@@ -460,6 +460,28 @@
     box-shadow: 0 10px 26px rgba(0,0,0,0.35);
   }
   .chat-toggle-btn svg{ width: 20px; height: 20px; }
+  .chat-badge{
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #ff3b30;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 0 0 2px rgba(24,7,5,0.9);
+    animation: chat-badge-pulse 1.6s ease-in-out infinite;
+  }
+  .chat-badge[hidden]{ display: none; }
+  @keyframes chat-badge-pulse{
+    0%, 100%{ transform: scale(1); }
+    50%{ transform: scale(1.12); }
+  }
   .chat-panel{
     position: absolute;
     left: 14px;
@@ -632,6 +654,7 @@
   </div>
   <button class="chat-toggle-btn" id="chatToggleBtn" aria-label="Open live chat" aria-expanded="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+    <span class="chat-badge" id="chatBadge" hidden>0</span>
   </button>
   <div class="chat-panel" id="chatPanel" hidden>
     <div class="chat-header">
@@ -992,19 +1015,32 @@
     var chatNameInput = document.getElementById('chatNameInput');
     var chatTextInput = document.getElementById('chatTextInput');
     var chatSendBtn = document.getElementById('chatSendBtn');
+    var chatBadge = document.getElementById('chatBadge');
     var CHAT_NAME_KEY = '9xm_chat_name';
     var MIN_SEND_GAP_MS = 2500; // basic spam guard -- one message every 2.5s
     var lastSendAt = 0;
+    var unreadCount = 0;
 
     try{
       var savedName = localStorage.getItem(CHAT_NAME_KEY);
       if (savedName) chatNameInput.value = savedName;
     } catch(e){}
 
+    function updateChatBadge(){
+      if (unreadCount > 0){
+        chatBadge.hidden = false;
+        chatBadge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+      } else {
+        chatBadge.hidden = true;
+      }
+    }
+
     function openChat(){
       chatPanel.hidden = false;
       chatToggleBtn.setAttribute('aria-expanded', 'true');
       chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+      unreadCount = 0;
+      updateChatBadge();
     }
     function closeChat(){
       chatPanel.hidden = true;
@@ -1040,8 +1076,11 @@
     });
 
     // called from the Firebase module script below whenever a chat message
-    // (new or already-existing) comes in through the real-time listener
-    window.renderChatMessage = function(name, text, song){
+    // (new or already-existing) comes in through the real-time listener.
+    // isNew is false for the initial history batch loaded on page open, and
+    // true for anything that arrives afterwards -- only the latter should
+    // bump the unread badge on the minimized chat icon.
+    window.renderChatMessage = function(name, text, song, isNew){
       var wasNearBottom = (chatMessagesEl.scrollTop + chatMessagesEl.clientHeight) >= (chatMessagesEl.scrollHeight - 30);
       var emptyEl = chatMessagesEl.querySelector('.chat-empty');
       if (emptyEl) emptyEl.remove();
@@ -1064,6 +1103,10 @@
       // keep the DOM from growing forever on a long-running tab
       while (chatMessagesEl.children.length > 150){ chatMessagesEl.removeChild(chatMessagesEl.firstChild); }
       if (wasNearBottom) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+      if (isNew && chatPanel.hidden){
+        unreadCount++;
+        updateChatBadge();
+      }
     };
     if (!chatMessagesEl.children.length){
       chatMessagesEl.innerHTML = '<div class="chat-empty">No messages yet. Say hi!</div>';
@@ -1136,18 +1179,21 @@
   var chatCollectionRef = collection(db, 'chat_messages');
   var chatQuery = query(chatCollectionRef, orderBy('createdAt', 'desc'), limit(50));
   var chatSeenIds = {};
+  var chatIsFirstSnapshot = true; // the initial batch is history, not "new" -- shouldn't badge it
   onSnapshot(chatQuery, function(snap){
     // Firestore gives newest-first (for the limit(50) to work) -- flip it
     // back to oldest-first so messages render top-to-bottom like a chat.
     var docsOldestFirst = snap.docs.slice().reverse();
+    var isNew = !chatIsFirstSnapshot;
     docsOldestFirst.forEach(function(d){
       if (chatSeenIds[d.id]) return;
       chatSeenIds[d.id] = true;
       var data = d.data();
       if (window.renderChatMessage){
-        window.renderChatMessage(data.name || 'Anonymous', data.text || '', data.song || '');
+        window.renderChatMessage(data.name || 'Anonymous', data.text || '', data.song || '', isNew);
       }
     });
+    chatIsFirstSnapshot = false;
   }, function(e){ console.error('[9XM chat] listen failed', e); });
 
   window.addEventListener('9xm-chat-send', function(e){
