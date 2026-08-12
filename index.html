@@ -901,10 +901,23 @@
   seekBar.addEventListener('mouseup', commitSeek);
   seekBar.addEventListener('touchend', commitSeek);
   // -- "up next" queue --------------------------------------------------
+  var titleCache = {};
   function fetchTitle(videoId, el){
+    // avoid re-requesting a title we already have -- the queue panel can
+    // rebuild while a track is playing, and without this cache every
+    // rebuild re-fetched the exact same titles from YouTube all over again
+    if (titleCache[videoId]){
+      el.textContent = titleCache[videoId];
+      return;
+    }
     fetch('https://www.youtube.com/oembed?url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + videoId) + '&format=json')
       .then(function(res){ if (!res.ok) throw new Error('oembed failed'); return res.json(); })
-      .then(function(data){ if (data && data.title) el.textContent = data.title; })
+      .then(function(data){
+        if (data && data.title){
+          titleCache[videoId] = data.title;
+          el.textContent = data.title;
+        }
+      })
       .catch(function(){ /* leave the "Track N" fallback already in place */ });
   }
   // -- "today's 9XM pick" -------------------------------------------------
@@ -1101,18 +1114,21 @@
           }
           if (e.data === YT.PlayerState.PLAYING || e.data === YT.PlayerState.BUFFERING || e.data === 5){
             updateSongTitle();
-            if (queueOpen) buildQueue();
-            // background image rotates whenever the actual track changes --
-            // this single hook catches manual prev/next, daily pick, queue
-            // clicks, and natural auto-advance, since they all end up here
+            // background image (and, below, the queue rebuild) only need to
+            // react when the track has actually changed -- BUFFERING/PLAYING/
+            // CUED can all fire multiple times for the *same* still-playing
+            // track, and re-doing this work every single time was wasted effort
+            var trackChanged = false;
             try{
               var vidData = ytPlayer.getVideoData();
               var newVideoId = vidData && vidData.video_id;
               if (newVideoId && newVideoId !== currentBgVideoId){
                 currentBgVideoId = newVideoId;
+                trackChanged = true;
                 pickRandomBackground();
               }
             } catch(e2){}
+            if (queueOpen && trackChanged) buildQueue();
           }
         },
         onError: function(e){
@@ -1294,13 +1310,13 @@
       chatMessagesEl.innerHTML = '<div class="chat-empty">No messages yet. Say hi!</div>';
     }
   })();
-  setInterval(pollProgress, 500);
+  setInterval(pollProgress, 1000);
 </script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
   import {
     getFirestore, doc, setDoc, deleteDoc, serverTimestamp,
-    collection, query, where, getDocs, Timestamp,
+    collection, query,
     addDoc, orderBy, limit, onSnapshot
   } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
   var firebaseConfig = {
@@ -1328,20 +1344,35 @@
   function cleanupSelf(){
     deleteDoc(doc(db, 'presence', CLIENT_ID)).catch(function(){});
   }
-  function refreshCount(){
-    var cutoff = Timestamp.fromMillis(Date.now() - STALE_MS);
-    var q = query(collection(db, 'presence'), where('lastSeen', '>', cutoff));
-    getDocs(q).then(function(snap){
-      var n = snap.size;
-      var label = n + (n === 1 ? ' person on 9XM' : ' people on 9XM');
-      if (listenerEl) listenerEl.textContent = label;
-      if (topListenerEl) topListenerEl.textContent = label;
-    }).catch(function(e){ console.error('[9XM presence] count failed', e); });
+  // -- listener count: real-time instead of polling ----------------------
+  // previously this did a fresh getDocs() query every 10 seconds, from
+  // every visitor's tab, forever. that's a repeated network round trip per
+  // visitor and a fresh Firestore read every single time regardless of
+  // whether anything actually changed. onSnapshot instead pushes updates
+  // only when the presence collection actually changes (someone joins or
+  // leaves), so the count updates instantly and far fewer reads happen.
+  var latestPresenceDocs = [];
+  function recomputeListenerCount(){
+    var cutoffMs = Date.now() - STALE_MS;
+    var n = 0;
+    for (var i = 0; i < latestPresenceDocs.length; i++){
+      var ts = latestPresenceDocs[i].lastSeen;
+      if (ts && typeof ts.toMillis === 'function' && ts.toMillis() > cutoffMs) n++;
+    }
+    var label = n + (n === 1 ? ' person on 9XM' : ' people on 9XM');
+    if (listenerEl) listenerEl.textContent = label;
+    if (topListenerEl) topListenerEl.textContent = label;
   }
+  onSnapshot(collection(db, 'presence'), function(snap){
+    latestPresenceDocs = snap.docs.map(function(d){ return d.data(); });
+    recomputeListenerCount();
+  }, function(e){ console.error('[9XM presence] listen failed', e); });
   heartbeat();
-  refreshCount();
   setInterval(heartbeat, HEARTBEAT_MS);
-  setInterval(refreshCount, 10000);
+  // this re-check makes no network call at all -- it just re-filters the
+  // already-cached snapshot data, to catch someone going stale purely from
+  // time passing (no Firestore write happens just because a clock ticks)
+  setInterval(recomputeListenerCount, 10000);
   // only clean up presence when the page is actually being closed/navigated away
   // from -- NOT on visibilitychange. switching tabs or backgrounding the browser
   // (music kept playing) also fires "hidden", which was wrongly making
