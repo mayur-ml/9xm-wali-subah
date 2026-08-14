@@ -824,8 +824,7 @@
   // add more filenames to this array as more images get added to the folder.
   var BACKGROUND_IMAGES = [
     '9xm_back/image2.jpeg',
-    '9xm_back/image1.jpeg',
-    '9xm_back/image3.jpeg'
+    '9xm_back/image1.jpeg'
   ];
   // two stacked layers (see the .hero-bg CSS) so a track change can
   // crossfade into the new image instead of snapping to it instantly.
@@ -1368,10 +1367,13 @@
   var db = getFirestore(app);
   var CLIENT_ID = 'v-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
   var HEARTBEAT_MS = 20000;   // re-announce "still here" every 20s
-  var STALE_MS = 75000;       // anyone silent for 75s no longer counts as online
-                               // (kept generous so a backgrounded/other-tab listener,
-                               // whose heartbeat timer can get throttled by the
-                               // browser, doesn't get wrongly dropped between beats)
+  var STALE_MS = 300000;      // anyone silent for 5 minutes no longer counts as online
+                               // (widened from 75s -- that window was much tighter than
+                               // Google Analytics' ~30-minute active-user window, so the
+                               // two numbers never matched. 5 minutes is generous enough
+                               // to absorb background-tab throttling and brief network
+                               // hiccups, while still dropping people fairly quickly
+                               // after they actually leave)
   var listenerEl = document.getElementById('listenerCount');
   var topListenerEl = document.getElementById('topListenerCount');
   function heartbeat(){
